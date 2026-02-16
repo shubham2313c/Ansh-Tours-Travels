@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { AppState, TripType, PaymentMode, FuelType, ExpenseCategory, Vehicle } from '../types';
-import { Check, Fuel, Receipt, Navigation, MapPin, User, Phone, AlertTriangle } from 'lucide-react';
+import { Check, Fuel, Receipt, Navigation, MapPin, User, Phone, AlertTriangle, Camera, Loader2, Sparkles } from 'lucide-react';
+import { analyzeReceipt } from '../services/geminiService';
 
 interface Props {
   vehicles: Vehicle[];
@@ -12,6 +13,9 @@ interface Props {
 
 const EntryForm: React.FC<Props> = ({ vehicles, onAddDaily, onAddFuel, onAddExpense }) => {
   const [tab, setTab] = useState<'daily' | 'fuel' | 'expense'>('daily');
+  const [isScanning, setIsScanning] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState<any>({
     date: new Date().toISOString().split('T')[0],
     vehicleId: vehicles[0]?.id || '',
@@ -67,6 +71,36 @@ const EntryForm: React.FC<Props> = ({ vehicles, onAddDaily, onAddFuel, onAddExpe
     });
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsScanning(true);
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const result = await analyzeReceipt(base64);
+      
+      if (result) {
+        setTab(result.type === 'fuel' ? 'fuel' : 'expense');
+        setFormData(prev => ({
+          ...prev,
+          date: result.date || prev.date,
+          amount: result.amount || 0,
+          cost: result.amount || 0,
+          quantity: result.quantity || 0,
+          stationName: result.stationName || '',
+          notes: result.notes || '',
+          category: result.category ? (Object.values(ExpenseCategory).find(c => c.toLowerCase().includes(result.category!.toLowerCase())) || ExpenseCategory.OTHER) : ExpenseCategory.OTHER
+        }));
+      } else {
+        setError("AI could not read the receipt clearly. Please try again or enter manually.");
+      }
+      setIsScanning(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
@@ -90,12 +124,44 @@ const EntryForm: React.FC<Props> = ({ vehicles, onAddDaily, onAddFuel, onAddExpe
   );
 
   return (
-    <div className="pb-24">
-      <div className="flex gap-2 mb-6 p-1 bg-white rounded-2xl shadow-sm border border-slate-100">
+    <div className="pb-24 relative">
+      {isScanning && (
+        <div className="fixed inset-0 z-[70] bg-indigo-900/40 backdrop-blur-md flex flex-col items-center justify-center text-white animate-in fade-in">
+          <div className="relative">
+            <div className="w-24 h-24 border-4 border-white/20 rounded-3xl animate-pulse"></div>
+            <Loader2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin" size={40} />
+            <div className="absolute inset-0 bg-white/20 animate-scan pointer-events-none"></div>
+          </div>
+          <div className="mt-8 flex items-center gap-2 px-6 py-2 bg-indigo-600 rounded-full font-bold shadow-xl">
+             <Sparkles size={18} />
+             <span>Ansh AI Reading Receipt...</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-4 p-1 bg-white rounded-2xl shadow-sm border border-slate-100">
         <TabButton id="daily" icon={Navigation} label="Daily Run" />
         <TabButton id="fuel" icon={Fuel} label="Fuel Log" />
         <TabButton id="expense" icon={Receipt} label="Expense" />
       </div>
+
+      {(tab === 'fuel' || tab === 'expense') && (
+        <button 
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full mb-4 py-4 bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-2xl text-indigo-600 font-bold flex items-center justify-center gap-3 hover:bg-indigo-100 transition-colors"
+        >
+          <Camera size={20} />
+          <span>Smart Scan Receipt</span>
+          <input 
+            type="file" 
+            accept="image/*" 
+            capture="environment" 
+            className="hidden" 
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+          />
+        </button>
+      )}
 
       {error && (
         <div className="mb-4 bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-2xl flex items-center gap-3 animate-pulse">
