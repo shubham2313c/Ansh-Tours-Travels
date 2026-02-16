@@ -1,5 +1,5 @@
 
-import { AppState, Vehicle } from '../types';
+import { AppState, Vehicle, DailyLog, FuelLog, ExpenseLog } from '../types';
 
 const STORAGE_KEY = 'ansh_tours_data';
 
@@ -44,18 +44,37 @@ export const loadState = (): AppState => {
       vehicles: initialVehicles,
       dailyLogs: [],
       fuelLogs: [],
-      expenseLogs: []
+      expenseLogs: [],
+      googleSyncUrl: ''
     };
   }
   return JSON.parse(data);
 };
 
+export const syncToCloud = async (url: string, type: 'trip' | 'fuel' | 'expense', payload: any) => {
+  if (!url) return;
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors', // Apps Script requires no-cors for simple redirects
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, payload })
+    });
+    return true;
+  } catch (e) {
+    console.error("Cloud Sync Error:", e);
+    return false;
+  }
+};
+
+// Added missing exportRawData function to support JSON backup downloads
 export const exportRawData = (state: AppState) => {
   const dataStr = JSON.stringify(state, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `Ansh_Tours_Backup_${new Date().toISOString().split('T')[0]}.json`;
-  link.click();
+  const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+  const exportFileDefaultName = `ansh_tours_backup_${new Date().toISOString().split('T')[0]}.json`;
+
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
 };

@@ -57,6 +57,7 @@ export interface DailyLog {
   income: number;
   paymentMode: PaymentMode;
   isPaymentPending: boolean;
+  synced?: boolean;
 }
 
 export interface FuelLog {
@@ -67,6 +68,7 @@ export interface FuelLog {
   quantity: number;
   cost: number;
   stationName: string;
+  synced?: boolean;
 }
 
 export interface ExpenseLog {
@@ -76,6 +78,7 @@ export interface ExpenseLog {
   category: ExpenseCategory;
   amount: number;
   notes: string;
+  synced?: boolean;
 }
 
 export interface AppState {
@@ -83,4 +86,5 @@ export interface AppState {
   dailyLogs: DailyLog[];
   fuelLogs: FuelLog[];
   expenseLogs: ExpenseLog[];
+  googleSyncUrl?: string;
 }
