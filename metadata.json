@@ -1,0 +1,7 @@
+{
+  "name": "Ansh Tours & Travels Fleet Manager",
+  "description": "A premium fleet management application with AI-powered receipt scanning and automated Excel reporting.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
